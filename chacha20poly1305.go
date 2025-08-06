@@ -81,22 +81,24 @@ func (c *c20p1305) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 	ret, out := sliceForAppend(dst, n+c.Overhead())
 	cipher.XORKeyStream(out, plaintext)
 
-	var tag, pad [16]byte
+	var tag [16]byte
+	var slen [8]byte
 	hash := poly1305.New(polyKey)
 
+	// MODIFIED: Libsodium original format (no 16-byte padding)
+	// 1. Additional data
 	hash.Write(additionalData)
-	if padAdd := len(additionalData) % 16; padAdd > 0 {
-		hash.Write(pad[:16-padAdd])
-	}
 
+	// 2. Additional data length (8 bytes, little endian)
+	binary.LittleEndian.PutUint64(slen[:], uint64(len(additionalData)))
+	hash.Write(slen[:])
+
+	// 3. Ciphertext
 	hash.Write(out[:n])
-	if padCt := n % 16; padCt > 0 {
-		hash.Write(pad[:16-padCt])
-	}
 
-	binary.LittleEndian.PutUint64(pad[:], uint64(len(additionalData)))
-	binary.LittleEndian.PutUint64(pad[8:], uint64(n))
-	hash.Write(pad[:])
+	// 4. Ciphertext length (8 bytes, little endian)
+	binary.LittleEndian.PutUint64(slen[:], uint64(n))
+	hash.Write(slen[:])
 
 	hash.Sum(tag[:0])
 	copy(out[n:], tag[:])
@@ -121,22 +123,25 @@ func (c *c20p1305) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, 
 
 	n := len(ciphertext) - c.Overhead()
 
-	var tag, pad [16]byte
+	var tag [16]byte
+	var slen [8]byte
 	hash := poly1305.New(polyKey)
 
+	// MODIFIED: Libsodium original format (no 16-byte padding)
+	// 1. Additional data
 	hash.Write(additionalData)
-	if padAdd := len(additionalData) % 16; padAdd > 0 {
-		hash.Write(pad[:16-padAdd])
-	}
 
+	// 2. Additional data length (8 bytes, little endian)
+	binary.LittleEndian.PutUint64(slen[:], uint64(len(additionalData)))
+	hash.Write(slen[:])
+
+	// 3. Ciphertext (without tag)
 	hash.Write(ciphertext[:n])
-	if padCt := n % 16; padCt > 0 {
-		hash.Write(pad[:16-padCt])
-	}
 
-	binary.LittleEndian.PutUint64(pad[:], uint64(len(additionalData)))
-	binary.LittleEndian.PutUint64(pad[8:], uint64(n))
-	hash.Write(pad[:])
+	// 4. Ciphertext length (8 bytes, little endian)
+	binary.LittleEndian.PutUint64(slen[:], uint64(n))
+	hash.Write(slen[:])
+
 	hash.Sum(tag[:0])
 
 	if subtle.ConstantTimeCompare(tag[:], ciphertext[n:]) != 1 {
