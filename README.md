@@ -5,6 +5,10 @@ of the [ChaCha20 stream cipher](https://github.com/aead/chacha20) and the [Poly1
 
 This repository also implements 8 and 24 byte variants additional to the IETF 12 byte version of ChaCha20Poly1305. Further this package provides a streaming API to wrap an [io.Writer](https://golang.org/pkg/io/#Writer) with an en/decrypting [io.WriteCloser](https://golang.org/pkg/io/#WriteCloser). 
 
+### Changes From this Fork
+
+The only change in this repository is that we change the chacha20poly1305 to be compatible with libsodium's 8 byte nonce variant. 
+
 ### Recommendations
 
 It is recommended to use the [official Chacha20Poly1305 implementation](https://godoc.org/golang.org/x/crypto/chacha20poly1305) if possible.  
